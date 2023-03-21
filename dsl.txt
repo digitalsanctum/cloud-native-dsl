@@ -1,0 +1,81 @@
+# DSL Syntax:
+# SERVICE: <service-name> [NAMESPACE <namespace>]
+# RESOURCES: <service-name> CPU <cpu-request>/<cpu-limit> MEM <memory-request>/<memory-limit>
+# RULE: <match-condition> -> <destination> [VERSION <version>] [HOST <host-pattern>] [PROTO <protocol>]
+# LOADBALANCE: <service-name> <algorithm> [PARAMS <parameters>]
+# RATELIMIT: <service-name> <requests-per-time-unit> [PER <time-unit>]
+# TRAIT: <trait-name> <trait-type> [PARAMS <parameters>]
+# APPLY: <trait-name> TO <service-name>
+# AUTHN: <service-name> <authn-type> [PARAMS <parameters>]
+# AUTHZ: <service-name> <authz-type> [PARAMS <parameters>]
+# ENV: <service-name> <variable-name>=<value>
+# SECRET: <service-name> <secret-name> [KEYS <key1>,<key2>,...]
+# DEPLOY: <service-name> <deployment-type> [PARAMS <parameters>]
+# OBSERVE: <service-name> [MONITORING <monitoring-type>] [TRACING <tracing-type>] [LOGGING <logging-type>]
+# TASK: <task-name> SCHEDULE <cron-schedule> HANDLER <handler-service> [PARAMS <parameters>] [TRAITS <trait1>,<trait2>,...]
+
+# Example:
+
+# Define Services
+SERVICE: customer-service NAMESPACE: my-namespace
+SERVICE: order-service NAMESPACE: my-namespace
+
+# Resources
+RESOURCES: customer-service CPU 100m/200m MEM 256Mi/512Mi
+RESOURCES: order-service CPU 100m/200m MEM 256Mi/512Mi
+
+# Routing Rules for customer-service
+RULE: GET /customers -> customer-service VERSION: v1 HOST: api.example.com PROTO: http
+RULE: POST /customers -> customer-service VERSION: v2 HOST: api.example.com PROTO: http
+RULE: GET /customers/:id -> customer-service VERSION: v1 HOST: api.example.com PROTO: http
+RULE: PUT /customers/:id -> customer-service VERSION: v2 HOST: api.example.com PROTO: http
+
+# Load Balancing Rules for customer-service
+LOADBALANCE: customer-service ROUND_ROBIN
+
+# Rate Limiting Rules for customer-service
+RATELIMIT: customer-service 1000 PER SECOND
+
+# Routing Rules for order-service
+RULE: GET /orders -> order-service VERSION: v1 HOST: api.example.com PROTO: http
+RULE: POST /orders -> order-service VERSION: v2 HOST: api.example.com PROTO: http
+RULE: GET /orders/:id -> order-service VERSION: v1 HOST: api.example.com PROTO: http
+RULE: PUT /orders/:id -> order-service VERSION: v2 HOST: api.example.com PROTO: http
+
+# Load Balancing Rules for order-service
+LOADBALANCE: order-service LEAST_CONN PARAMS max_connections=10
+
+# Rate Limiting Rules for order-service
+RATELIMIT: order-service 500 PER SECOND
+
+# Define OAM Traits
+TRAIT: auto-scaler HorizontalPodAutoscaler PARAMS min_replicas=1,max_replicas=10,target_cpu_utilization=80
+
+# Apply OAM Traits to Services
+APPLY: auto-scaler TO customer-service
+APPLY: auto-scaler TO order-service
+
+# Authentication
+AUTHN: customer-service JWT PARAMS issuer=my-issuer,audience=my-audience,jwks_uri=my-jwks-uri
+AUTHN: order-service JWT PARAMS issuer=my-issuer,audience=my-audience,jwks_uri=my-jwks-uri
+
+# Authorization
+AUTHZ: customer-service RBAC PARAMS policy=my-rbac-policy
+AUTHZ: order-service RBAC PARAMS policy=my-rbac-policy
+
+# Environment Variables
+ENV: customer-service DATABASE_URL=postgres://user:pass@host:port/db
+ENV: customer-service LOG_LEVEL=info
+ENV: order-service DATABASE_URL=postgres://user:pass@host:port/db
+ENV: order-service LOG_LEVEL=info
+
+# Secrets
+SECRET: customer-service database-credentials KEYS username,password
+SECRET: order-service database-credentials KEYS username,password
+
+# Deployment Configuration
+DEPLOY: customer-service canary PARAMS version=v3,percentage=20
+
+# Observability Configuration
+OBSERVE: customer-service MONITORING prometheus TRACING jaeger LOGGING fluentd
+OBSERVE: order-service MONITORING prometheus TRACING jaeger LOGGING fluentd
